@@ -1,0 +1,1 @@
+Scenario SB1: review-gate success on the PR head only. Synthetic.
