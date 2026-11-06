@@ -1,0 +1,1 @@
+Scenario SB3: review-gate failure on the PR head, success on the test merge commit. Synthetic.
