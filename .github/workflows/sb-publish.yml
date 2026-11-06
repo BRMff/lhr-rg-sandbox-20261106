@@ -1,0 +1,43 @@
+name: sb-publish
+
+# Disposable sandbox for RG-SB1-SB4. Publishes synthetic `review-gate` commit
+# statuses as github-actions[bot] on the PR head and/or on the test merge
+# commit (github.sha for pull_request events). The scenario is selected only by
+# an exact match on the branch name; nothing else from the event is executed.
+on:
+  pull_request:
+    types: [opened]
+
+permissions: {}
+
+jobs:
+  publisher:
+    name: sb-publisher (not the required check)
+    runs-on: ubuntu-24.04
+    permissions:
+      statuses: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      BRANCH: ${{ github.head_ref }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      MERGE_SHA: ${{ github.sha }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Publish scenario statuses
+        run: |
+          set -eu
+          case "$BRANCH" in
+            sb1-head-success)      head=success; merge=none ;;
+            sb2-merge-success)     head=none;    merge=success ;;
+            sb3-head-fail-merge-ok) head=failure; merge=success ;;
+            sb4-head-ok-merge-fail) head=success; merge=failure ;;
+            *) echo "unknown scenario"; exit 1 ;;
+          esac
+          echo "head=$HEAD_SHA merge=$MERGE_SHA"
+          post() {
+            gh api "repos/$REPO/statuses/$1" -f state="$2" -f context=review-gate \
+              -f description="$3" -f target_url="$RUN_URL" --jq '"\(.id) \(.state) \(.creator.login)"'
+          }
+          if [ "$head" != none ]; then post "$HEAD_SHA" "$head" "sandbox $BRANCH: $head on PR head"; fi
+          if [ "$merge" != none ]; then post "$MERGE_SHA" "$merge" "sandbox $BRANCH: $merge on test merge commit"; fi
