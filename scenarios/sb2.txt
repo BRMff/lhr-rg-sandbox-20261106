@@ -1,0 +1,1 @@
+Scenario SB2: review-gate success on the test merge commit only. Synthetic.
